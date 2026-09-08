@@ -1,0 +1,30 @@
+name: Import verified git up delivery
+on:
+  push:
+    branches: [main]
+    paths: ['.delivery/READY.json']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: gitup-delivery-import
+  cancel-in-progress: false
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 1
+      - name: Validate and materialize the approved delivery
+        run: python3 .delivery/import.py
+      - name: Commit imported files without rewriting history
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add --pathspec-from-file=.delivery/paths.nul --pathspec-file-nul
+          if ! git diff --cached --quiet; then
+            git commit -m 'chore: import verified git up V0.3.1 source, preview and handoff records'
+            git push origin HEAD:main
+          fi
